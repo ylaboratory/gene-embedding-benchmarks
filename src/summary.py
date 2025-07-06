@@ -5,6 +5,8 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from sklearn.decomposition import PCA
+from sklearn.cross_decomposition import CCA
 
 # Paths
 MOD_PATH = "data/embeddings/all_genes/"
@@ -119,6 +121,19 @@ def clean_subfolder_name(name, base_path="data/embeddings/intersect/", suffix=""
         name = name[: -len(suffix)]
     return name
 
+def apply_pca_to_embeddings(embeddings_dict, n_components=10):
+    pca_embeddings = {}
+    for name, embedding in embeddings_dict.items():
+        pca = PCA(n_components=n_components)
+        embedding_reduced = pca.fit_transform(embedding)
+        pca_embeddings[name] = embedding_reduced
+    return pca_embeddings
+
+def compute_similarity(emb1, emb2):
+    n_components = min(emb1.shape[1], emb2.shape[1])
+    cca = CCA(n_components=n_components)
+    cca.fit(emb1, emb2)
+    return cca.score(emb1, emb2)
 
 if __name__ == "__main__":
     # Collect gene sets

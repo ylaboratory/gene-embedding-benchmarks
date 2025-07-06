@@ -1,281 +1,205 @@
-import pandas as pd
-import helper
+#!/usr/bin/env python
+import os
+os.environ["OMP_NUM_THREADS"]        = "10"
+os.environ["MKL_NUM_THREADS"]        = "10"
+os.environ["NUMEXPR_NUM_THREADS"]    = "10"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "10"
+os.environ["OPENBLAS_NUM_THREADS"]   = "10"
+os.environ["BLIS_NUM_THREADS"]       = "10"
+import sys
+import glob
 import pickle
-from matplotlib.lines import Line2D
-import matplotlib.pyplot as plt
-import seaborn as sns
-import statsmodels.api as sm
-import statsmodels.formula.api as smf
+import time
+import argparse
+
+import numpy as np
+import pandas as pd
+from sklearn.svm import SVC
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import roc_auc_score, average_precision_score, make_scorer
+
+C_VALUES = [0.1, 1, 10, 100, 1000]
+N_JOBS = 3
+
+def precision_at_k(y_true, y_scores, k=10):
+    order = np.argsort(y_scores)[::-1]
+    return np.mean(np.array(y_true)[order[:k]])
+
+
+def filter_pairs_labels(pairs, labels, ref_genes):
+    fp, fl, idx = [], [], []
+    for i, ((g1, g2), lbl) in enumerate(zip(pairs, labels)):
+        if g1 in ref_genes and g2 in ref_genes:
+            fp.append((g1, g2))
+            fl.append(lbl)
+            idx.append(i)
+    return fp, fl, idx
+
+
+def build_features_sum(pairs, emb, g2i):
+    feats = []
+    for g1, g2 in pairs:
+        feats.append(emb[g2i[g1]] + emb[g2i[g2]])
+    return np.vstack(feats)
+
+
+def build_features_product(pairs, emb, g2i):
+    feats = []
+    for g1, g2 in pairs:
+        feats.append(emb[g2i[g1]] * emb[g2i[g2]])
+    return np.vstack(feats)
+
+
+def build_features_concat(pairs, emb, g2i):
+    idx1 = [g2i[g1] for g1, g2 in pairs]
+    idx2 = [g2i[g2] for g1, g2 in pairs]
+    return np.hstack([emb[idx1], emb[idx2]])
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Nested CV SVM on gene embeddings")
+    parser.add_argument("--subfolder", required=True,
+                        help="Path to embedding subfolder (with embedding CSV and genelist txt)")
+    parser.add_argument("-o", "--operation", choices=["sum","product","concat"],
+                        default="sum", help="How to combine pair embeddings")
+    parser.add_argument("-d", "--out-root", required=True,
+                        help="Directory to save results")
+    parser.add_argument("-s", "--suffix",
+                        help="Suffix for output CSV")
+    parser.add_argument("--cv-pkl", required=True,
+                        help="Path to nested CV splits pickle file")
+    args = parser.parse_args()
+
+    subfolder = args.subfolder.rstrip("/")
+    name = os.path.basename(subfolder)
+    OUT_ROOT = args.out_root
+    os.makedirs(OUT_ROOT, exist_ok=True)
+    suffix = args.suffix or args.operation
+    
+    with open(args.cv_pkl, "rb") as f:
+        cv_data = pickle.load(f)
+    pairs, labels, cv_splits = cv_data["pairs"], cv_data["labels"], cv_data["cv_splits"]
+
+    csvs = glob.glob(os.path.join(subfolder, "*.csv"))
+    if not csvs:
+        raise FileNotFoundError(f"No CSV files in {subfolder}")
+    emb_vals = pd.read_csv(csvs[0], header=None).values
+
+    txts = glob.glob(os.path.join(subfolder, "*.txt"))
+    if len(txts) != 1:
+        raise FileNotFoundError(f"Expected exactly 1 .txt gene-list in {subfolder}, found {len(txts)}")
+    with open(txts[0]) as f:
+        ref_genes = [line.strip() for line in f if line.strip()]
+
+    if args.operation == "sum":
+        build_features = build_features_sum
+    elif args.operation == "product":
+        build_features = build_features_product
+    else:
+        build_features = build_features_concat
+
+    g2i = {g: i for i, g in enumerate(ref_genes)}
+    fp, fl, idx_master = filter_pairs_labels(pairs, labels, ref_genes)
+    if not fp:
+        raise ValueError("No pairs survive filtering for this embedding!")
+    X = build_features(fp, emb_vals, g2i)
+    y = np.array(fl)
+
+    orig_pos = sum(l == 1 for l in labels)
+    filtered_pos = sum(l == 1 for l in fl)
+    print(f"Processing '{name}' | Operation: {args.operation}")
+    print(f"Original positives: {orig_pos}, Filtered positives: {filtered_pos}")
+
+    pr10_scorer = make_scorer(precision_at_k, needs_threshold=True, k=10)
+    results = []
+
+    # Outer CV loop
+    for fold, splits in cv_splits.items():
+        train_m, outer_m = splits["train_idx"], splits["test_idx"]
+        train_idx = [i for i, m in enumerate(idx_master) if m in train_m]
+        outer_idx = [i for i, m in enumerate(idx_master) if m in outer_m]
+
+        X_train, y_train = X[train_idx], y[train_idx]
+        X_outer, y_outer = X[outer_idx], y[outer_idx]
+
+        # Map inner splits
+        inner_splits_mapped = []
+        train_master = [m for m in idx_master if m in train_m]
+        full2train = {m: i for i, m in enumerate(train_master)}
+        for tr_m, val_m in splits["inner_splits"]:
+            tr_idx = [full2train[m] for m in tr_m if m in full2train]
+            val_idx = [full2train[m] for m in val_m if m in full2train]
+            if tr_idx and val_idx:
+                inner_splits_mapped.append((tr_idx, val_idx))
+
+        print(f"Fold {fold}: train={len(train_idx)}, outer={len(outer_idx)}")
+
+        # Inner CV
+        t0_inner = time.time()
+        grid = GridSearchCV(
+            SVC(class_weight="balanced", probability=False),
+            param_grid={"C": C_VALUES},
+            scoring={"AUC": "roc_auc", "AUPRC": "average_precision", "PR@10": pr10_scorer},
+            refit="AUC", cv=inner_splits_mapped, n_jobs=N_JOBS,
+            return_train_score=False
+        )
+        grid.fit(X_train, y_train)
+        inner_time = time.time() - t0_inner
+
+        best_i = grid.best_index_
+        cvres = grid.cv_results_
+        inner_auc = grid.best_score_
+        inner_auprc = cvres["mean_test_AUPRC"][best_i]
+        inner_pr10 = cvres["mean_test_PR@10"][best_i]
+
+        # Outer evaluation
+        t0_outer = time.time()
+        outer_scores = grid.decision_function(X_outer)
+        outer_auc = roc_auc_score(y_outer, outer_scores)
+        outer_auprc = average_precision_score(y_outer, outer_scores)
+        outer_pr10 = precision_at_k(y_outer, outer_scores, k=10)
+        outer_time = time.time() - t0_outer
+
+        results.append({
+            "fold": fold,
+            "best_C": grid.best_params_["C"],
+            "inner_AUC": inner_auc,
+            "inner_AUPRC": inner_auprc,
+            "inner_PR@10": inner_pr10,
+            "inner_time": inner_time,
+            "outer_AUC": outer_auc,
+            "outer_AUPRC": outer_auprc,
+            "outer_PR@10": outer_pr10,
+            "outer_time": outer_time
+        })
+
+    df = pd.DataFrame(results)
+    df["orig_pos_pairs"] = orig_pos
+    df["filtered_pos_pairs"] = filtered_pos
+
+    summary = {
+        "fold": "average",
+        "best_C": df["best_C"].mode()[0],
+        "inner_AUC": df["inner_AUC"].mean(),
+        "inner_AUPRC": df["inner_AUPRC"].mean(),
+        "inner_PR@10": df["inner_PR@10"].mean(),
+        "inner_time": df["inner_time"].mean(),
+        "outer_AUC": df["outer_AUC"].mean(),
+        "outer_AUPRC": df["outer_AUPRC"].mean(),
+        "outer_PR@10": df["outer_PR@10"].mean(),
+        "outer_time": df["outer_time"].mean(),
+        "orig_pos_pairs": df["orig_pos_pairs"].mean(),
+        "filtered_pos_pairs": df["filtered_pos_pairs"].mean()
+    }
+    df = pd.concat([df, pd.DataFrame([summary])], ignore_index=True)
+
+    out_csv = os.path.join(OUT_ROOT, f"{name}_{suffix}.csv")
+    df.to_csv(out_csv, index=False)
+
+    print("\nResults:")
+    print(df.to_string(index=False))
+    print(f"\nSaved to {out_csv}")
 
 
 if __name__ == "__main__":
-    embeddings, reference_node2index = helper.load_embeddings()
-
-    # SL
-    data = pd.read_csv(
-        "/data/biogrid/BIOGRID-ORGANISM-Homo_sapiens-4.4.240.tab3.txt", sep="\t"
-    )
-    data = data[
-        (data["Organism ID Interactor A"] == 9606)
-        & (data["Organism ID Interactor B"] == 9606)
-    ]
-    data = data[data["Experimental System Type"] == "genetic"]
-
-    selected_data = data[data["Experimental System"] == "Synthetic Lethality"]
-    positive_pairs = []
-    for i in range(selected_data.shape[0]):
-        a = str(selected_data.iloc[i]["Entrez Gene Interactor A"])
-        b = str(selected_data.iloc[i]["Entrez Gene Interactor B"])
-        positive_pairs.append((min(a, b), max(a, b)))
-    positive_pairs = set(positive_pairs)
-
-    positive_pairs = {
-        pair
-        for pair in positive_pairs
-        if pair[0] in reference_node2index and pair[1] in reference_node2index
-    }
-    print(len(positive_pairs))
-    used_nodes = list(
-        set([x for x, y in positive_pairs]).union(set([y for x, y in positive_pairs]))
-    )
-
-    holdout_nodes, splits, cv_nodes = helper.fold_split(used_nodes)
-    (
-        fold_splits,
-        holdout_pairs,
-        holdout_labels,
-        final_train_pairs,
-        final_train_labels,
-    ) = helper.setup_data(positive_pairs, splits, holdout_nodes, cv_nodes)
-
-    # save holdout and fold splits
-    file_names = [
-        "bin/sl_fold_splits_pairs.pkl",
-        "bin/sl_fold_nodes.pkl",
-        "bin/sl_holdout_pairs.pkl",
-        "bin/sl_holdout_labels.pkl",
-        "bin/sl_holdout_nodes.pkl",
-    ]
-    data_dicts = [fold_splits, splits, holdout_pairs, holdout_labels, holdout_nodes]
-
-    for file_name, data_dict in zip(file_names, data_dicts):
-        with open(file_name, "wb") as f:
-            pickle.dump(data_dict, f)
-
-    sl_fold_results_df, sl_holdout_results_df = helper.run_SVM(
-        embeddings,
-        reference_node2index,
-        splits,
-        fold_splits,
-        holdout_pairs,
-        holdout_labels,
-        final_train_pairs,
-        final_train_labels,
-    )
-    sl_fold_results_df.to_csv("results/gene_pair/sl_holdout_results.csv", index=False)
-
-    # NG
-    data = pd.read_csv(
-        "/biogrid/BIOGRID-ORGANISM-Homo_sapiens-4.4.240.tab3.txt", sep="\t"
-    )
-    data = data[
-        (data["Organism ID Interactor A"] == 9606)
-        & (data["Organism ID Interactor B"] == 9606)
-    ]
-    data = data[data["Experimental System Type"] == "genetic"]
-
-    selected_data = data[data["Experimental System"] == "Negative Genetic"]
-    positive_pairs = []
-    for i in range(selected_data.shape[0]):
-        a = str(selected_data.iloc[i]["Entrez Gene Interactor A"])
-        b = str(selected_data.iloc[i]["Entrez Gene Interactor B"])
-        positive_pairs.append((min(a, b), max(a, b)))
-    positive_pairs = set(positive_pairs)
-
-    positive_pairs = {
-        pair
-        for pair in positive_pairs
-        if pair[0] in reference_node2index and pair[1] in reference_node2index
-    }
-    print(len(positive_pairs))
-    used_nodes = list(
-        set([x for x, y in positive_pairs]).union(set([y for x, y in positive_pairs]))
-    )
-
-    holdout_nodes, splits, cv_nodes = helper.fold_split(used_nodes)
-    (
-        fold_splits,
-        holdout_pairs,
-        holdout_labels,
-        final_train_pairs,
-        final_train_labels,
-    ) = helper.setup_data(positive_pairs, splits, holdout_nodes, cv_nodes)
-
-    # save holdout and fold splits
-    file_names = [
-        "bin/ng_fold_splits_pairs.pkl",
-        "bin/ng_fold_nodes.pkl",
-        "bin/ng_holdout_pairs.pkl",
-        "bin/ng_holdout_labels.pkl",
-        "bin/ng_holdout_nodes.pkl",
-    ]
-    data_dicts = [fold_splits, splits, holdout_pairs, holdout_labels, holdout_nodes]
-
-    for file_name, data_dict in zip(file_names, data_dicts):
-        with open(file_name, "wb") as f:
-            pickle.dump(data_dict, f)
-
-    ng_fold_results_df, ng_holdout_results_df = helper.run_SVM(
-        embeddings,
-        reference_node2index,
-        splits,
-        fold_splits,
-        holdout_pairs,
-        holdout_labels,
-        final_train_pairs,
-        final_train_labels,
-    )
-    ng_holdout_results_df.to_csv(
-        "results/gene_pair/ng_holdout_results.csv", index=False
-    )
-
-    # TF
-    data = pd.read_csv("/data/tf_target.txt", sep="\t")
-    tf_target_counts = data.groupby("TF").size()
-    filtered_tfs = tf_target_counts[
-        (tf_target_counts > 500) & (tf_target_counts < 1000)
-    ].index
-    print(len(filtered_tfs))
-    selected_data = data[data["TF"].isin(filtered_tfs)]
-    positive_pairs = []
-    for i in range(selected_data.shape[0]):
-        a = str(selected_data.iloc[i]["TF"])
-        b = str(selected_data.iloc[i]["Target"])
-        positive_pairs.append((min(a, b), max(a, b)))
-    positive_pairs = set(positive_pairs)
-
-    positive_pairs = {
-        pair
-        for pair in positive_pairs
-        if pair[0] in reference_node2index and pair[1] in reference_node2index
-    }
-    print(len(positive_pairs))
-    used_nodes = list(
-        set([x for x, y in positive_pairs]).union(set([y for x, y in positive_pairs]))
-    )
-
-    holdout_nodes, splits, cv_nodes = helper.fold_split(used_nodes)
-    (
-        fold_splits,
-        holdout_pairs,
-        holdout_labels,
-        final_train_pairs,
-        final_train_labels,
-    ) = helper.setup_data(positive_pairs, splits, holdout_nodes, cv_nodes)
-
-    # save holdout and fold splits
-    file_names = [
-        "bin/tf_fold_splits_pairs.pkl",
-        "bin/tf_fold_nodes.pkl",
-        "bin/tf_holdout_pairs.pkl",
-        "bin/tf_holdout_labels.pkl",
-        "bin/tf_holdout_nodes.pkl",
-    ]
-    data_dicts = [fold_splits, splits, holdout_pairs, holdout_labels, holdout_nodes]
-
-    for file_name, data_dict in zip(file_names, data_dicts):
-        with open(file_name, "wb") as f:
-            pickle.dump(data_dict, f)
-
-    tf_fold_results_df, tf_holdout_results_df = helper.run_SVM(
-        embeddings,
-        reference_node2index,
-        splits,
-        fold_splits,
-        holdout_pairs,
-        holdout_labels,
-        final_train_pairs,
-        final_train_labels,
-    )
-    tf_holdout_results_df.to_csv(
-        "results/gene_pair/tf_holdout_results.csv", index=False
-    )
-
-    # Compile data for plot
-    meta_df = pd.read_csv("data/embed_meta.csv", index_col=0, encoding="utf-8")
-    meta_df.index = meta_df.index.str.replace(r"\s+", "", regex=True)
-
-    holdout_df = pd.concat(
-        [sl_holdout_results_df, ng_holdout_results_df, tf_holdout_results_df],
-        ignore_index=True,
-    )
-    holdout_auc = holdout_df.pivot(index="subfolder", columns="benchmark", values="AUC")
-    holdout_auc = holdout_auc[["ssl", "ng", "tf"]]
-    holdout_auc["average_auc"] = holdout_auc.mean(axis=1)
-    holdout_auc = holdout_auc.sort_values(by="average_auc", ascending=False)
-    holdout_auc = holdout_auc.drop(columns=["average_auc"])
-    holdout_auc["data"] = meta_df.loc[holdout_auc.index, "Category"].values
-    holdout_auc["algorithm"] = meta_df.loc[holdout_auc.index, "Method"].values
-    holdout_auc["Dimensions"] = meta_df.loc[holdout_auc.index, "Dimensions"].values
-
-    holdout_long = holdout_auc.reset_index().melt(
-        id_vars=["subfolder", "data", "algorithm", "Dimensions"],
-        value_vars=["sl", "ng", "tf"],
-        var_name="Benchmark",
-        value_name="AUC",
-    )
-
-    benchmark_colors = {"sl": "maroon", "ng": "navy", "tf": "#173317"}
-    benchmark_markers = {"sl": "o", "ng": ">", "tf": "s"}
-
-    plt.figure(figsize=(6.5, 8))
-    for benchmark in holdout_long["Benchmark"].unique():
-        benchmark_data = holdout_long[holdout_long["Benchmark"] == benchmark]
-        sns.stripplot(
-            data=benchmark_data,
-            x="AUC",
-            y="subfolder",
-            color=benchmark_colors[benchmark],
-            marker=benchmark_markers[benchmark],
-            size=8,
-            alpha=0.8,
-            label=benchmark,
-        )
-
-    plt.title("", fontsize=16)
-    plt.xlabel("AUC", fontsize=12)
-    plt.ylabel("", fontsize=12)
-
-    legend_elements = [
-        Line2D([0], [0], color="maroon", marker="o", linestyle="", label="sl"),
-        Line2D([0], [0], color="navy", marker=">", linestyle="", label="ng"),
-        Line2D([0], [0], color="#173317", marker="s", linestyle="", label="tf"),
-    ]
-
-    plt.legend(handles=legend_elements, title="", loc="lower right", frameon=True)
-
-    plt.tight_layout()
-    plt.savefig(
-        "results/plots/holdout_genepair_dot_plot.pdf", format="pdf", bbox_inches="tight"
-    )
-
-    plt.show()
-
-    holdout_auc["Dimension_2"] = holdout_auc["Dimensions"].apply(lambda x: x[1])
-
-    def calculate_anova_with_ratios(dependent_variable, data):
-        print(f"\nANOVA for {dependent_variable}")
-        model = smf.ols(
-            f"{dependent_variable} ~ data + algorithm + Dimension_2", data=data
-        ).fit()
-        anova_table = sm.stats.anova_lm(model, typ=2)
-
-        total_sum_sq = anova_table["sum_sq"].sum()
-        anova_table["ratio"] = anova_table["sum_sq"] / total_sum_sq
-
-        print(anova_table)
-        return anova_table
-
-    ssl_anova = calculate_anova_with_ratios("sl", holdout_auc)
-    ng_anova = calculate_anova_with_ratios("ng", holdout_auc)
-    tf_anova = calculate_anova_with_ratios("tf", holdout_auc)
+    main()

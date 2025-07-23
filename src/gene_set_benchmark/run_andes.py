@@ -1,16 +1,38 @@
 import os
 import subprocess
 from datetime import datetime
+import argparse
+from pathlib import Path
 
 # change file name/path (that are commented out) based on disease-tissue vs kegg-go task
 
-embed_path = "data/embeddings/intersect"
-andes_script = "ANDES/src/andes.py"
-geneset1 = "data/gmt/KEGG_CPDB.gmt"  # 'data/gmt/bto_specific.gmt'
-geneset2 = "data/gmt/hsa_low_eval_BP_propagated.gmt"  # 'data/gmt/omim_entrez.gmt'
-andes_out_path = "results/andes_out"
-status_log = "andes_status.txt"
-matched_pairs_file = "data/matched_pairs/matched_pair_kegg_go.txt"  # data/matched_pairs/matched_list_bto_doid.txt
+parser = argparse.ArgumentParser()
+
+parser.add_argument("--embed-path",      default="data/embeddings/intersect", type=Path)
+parser.add_argument("--andes-script",    default="ANDES/src/andes.py",        type=Path)
+parser.add_argument("--geneset1",        default="data/gmt/KEGG_CPDB.gmt",    type=Path)
+parser.add_argument("--geneset2",        default="data/gmt/hsa_low_eval_BP_propagated.gmt", type=Path)
+parser.add_argument("--out-dir",         default="results/andes_out",         type=Path)
+parser.add_argument("--status-log",      default="andes_status.txt",          type=Path)
+parser.add_argument("--matched-pairs",   default="data/matched_pairs/matched_pair_kegg_go.txt", type=Path)
+
+args = parser.parse_args()
+
+embed_path         = args.embed_path
+andes_script       = args.andes_script
+geneset1           = args.geneset1
+geneset2           = args.geneset2
+andes_out_path     = args.out_dir
+status_log         = args.status_log
+matched_pairs_file = args.matched_pairs
+
+# embed_path = "data/embeddings/intersect"
+# andes_script = "ANDES/src/andes.py"
+# geneset1 = "data/gmt/KEGG_CPDB.gmt"  # 'data/gmt/bto_specific.gmt'
+# geneset2 = "data/gmt/hsa_low_eval_BP_propagated.gmt"  # 'data/gmt/omim_entrez.gmt'
+# andes_out_path = "results/andes_out"
+# status_log = "andes_status.txt"
+# matched_pairs_file = "data/matched_pairs/matched_pair_kegg_go.txt"  # data/matched_pairs/matched_list_bto_doid.txt
 
 if not os.path.exists(andes_out_path):
     os.makedirs(andes_out_path)

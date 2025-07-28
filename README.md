@@ -6,7 +6,6 @@ Gene embeddings have emerged as transformative tools in computational biology, e
 
 ## Organization
 This repo is organized into several sections, part of which is stored on [zenodo](https://zenodo.org/records/14769058).
-- `bin`: contains binaries and intermediate files from the benchmarking experiments, which includes the fold and holdout splits that we used in our tests saved as pkl files
 - `data`: contains datasets and metadata used for benchmarking
   - `embeddings`: preprocessed embeddings for genes from various methods
     - `intersect`: preprocessed embeddings for genes that are common across all methods in entrez gene format (on [zenodo](https://zenodo.org/records/14769058))
@@ -23,9 +22,7 @@ This repo is organized into several sections, part of which is stored on [zenodo
   - `gene_level_benchmark`: code used for benchmarking disease gene prediction (OMIM) and gene function prediction (GO).
   - `gene_pair_benchmark`: code used for benchmarking genetic interaction (e.g., SL/NG) and transcription factor target (TF) prediction.
   - `gene_set_benchmark`: code used for benchmarking matching pathways (GO/KEGG) and disease/tissue (OMIM/Brenda).
-  - `preprocess_embedding`: code used for preprocessing embeddings
-  - `summary.py`: code used for summarizing the tested embeddings
-
+  - `other`: code used for preprocessing embeddings and conducting the CCA and ANOVA analysis
 
 ## Running the scripts
 We recommend using conda for installing all necessary packages. Once conda is installed, get started by creating and activating the virtual environment.

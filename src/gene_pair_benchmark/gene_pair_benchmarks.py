@@ -6,7 +6,6 @@ os.environ["NUMEXPR_NUM_THREADS"]    = "10"
 os.environ["VECLIB_MAXIMUM_THREADS"] = "10"
 os.environ["OPENBLAS_NUM_THREADS"]   = "10"
 os.environ["BLIS_NUM_THREADS"]       = "10"
-import sys
 import glob
 import pickle
 import time

@@ -6,21 +6,10 @@ os.environ["VECLIB_MAXIMUM_THREADS"] = "10"
 os.environ["OPENBLAS_NUM_THREADS"] = "10" 
 import pandas as pd
 import numpy as np
-import random
-import sys
-from collections import defaultdict, Counter
 import os
 import glob
-from sklearn.model_selection import train_test_split, KFold
 from sklearn.metrics import roc_auc_score, average_precision_score, precision_score
 from sklearn.svm import SVC
-import matplotlib.pyplot as plt
-import seaborn as sns
-import gseapy as gp
-import obonet
-import networkx as nx
-import random
-import math
 import time
 import pickle
 import argparse

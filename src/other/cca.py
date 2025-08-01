@@ -6,6 +6,7 @@ from sklearn.cross_decomposition import CCA
 import matplotlib.patches as mpatches
 import pandas as pd 
 import glob 
+import os 
 
 def apply_pca_to_embeddings(embeddings_dict, n_components=10):
     pca_embeddings = {}

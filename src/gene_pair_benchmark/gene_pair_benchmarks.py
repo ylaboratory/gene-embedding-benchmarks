@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 import os
-os.environ["OMP_NUM_THREADS"]        = "10"
-os.environ["MKL_NUM_THREADS"]        = "10"
-os.environ["NUMEXPR_NUM_THREADS"]    = "10"
+
+os.environ["OMP_NUM_THREADS"] = "10"
+os.environ["MKL_NUM_THREADS"] = "10"
+os.environ["NUMEXPR_NUM_THREADS"] = "10"
 os.environ["VECLIB_MAXIMUM_THREADS"] = "10"
-os.environ["OPENBLAS_NUM_THREADS"]   = "10"
-os.environ["BLIS_NUM_THREADS"]       = "10"
+os.environ["OPENBLAS_NUM_THREADS"] = "10"
+os.environ["BLIS_NUM_THREADS"] = "10"
 import glob
 import pickle
 import time
@@ -19,6 +20,7 @@ from sklearn.metrics import roc_auc_score, average_precision_score, make_scorer
 
 C_VALUES = [0.1, 1, 10, 100, 1000]
 N_JOBS = 3
+
 
 def precision_at_k(y_true, y_scores, k=10):
     order = np.argsort(y_scores)[::-1]
@@ -57,16 +59,25 @@ def build_features_concat(pairs, emb, g2i):
 
 def main():
     parser = argparse.ArgumentParser(description="Nested CV SVM on gene embeddings")
-    parser.add_argument("--subfolder", required=True,
-                        help="Path to embedding subfolder (with embedding CSV and genelist txt)")
-    parser.add_argument("-o", "--operation", choices=["sum","product","concat"],
-                        default="sum", help="How to combine pair embeddings")
-    parser.add_argument("-d", "--out-root", required=True,
-                        help="Directory to save results")
-    parser.add_argument("-s", "--suffix",
-                        help="Suffix for output CSV")
-    parser.add_argument("--cv-pkl", required=True,
-                        help="Path to nested CV splits pickle file")
+    parser.add_argument(
+        "--subfolder",
+        required=True,
+        help="Path to embedding subfolder (with embedding CSV and genelist txt)",
+    )
+    parser.add_argument(
+        "-o",
+        "--operation",
+        choices=["sum", "product", "concat"],
+        default="sum",
+        help="How to combine pair embeddings",
+    )
+    parser.add_argument(
+        "-d", "--out-root", required=True, help="Directory to save results"
+    )
+    parser.add_argument("-s", "--suffix", help="Suffix for output CSV")
+    parser.add_argument(
+        "--cv-pkl", required=True, help="Path to nested CV splits pickle file"
+    )
     args = parser.parse_args()
 
     subfolder = args.subfolder.rstrip("/")
@@ -74,7 +85,7 @@ def main():
     OUT_ROOT = args.out_root
     os.makedirs(OUT_ROOT, exist_ok=True)
     suffix = args.suffix or args.operation
-    
+
     with open(args.cv_pkl, "rb") as f:
         cv_data = pickle.load(f)
     pairs, labels, cv_splits = cv_data["pairs"], cv_data["labels"], cv_data["cv_splits"]
@@ -86,7 +97,9 @@ def main():
 
     txts = glob.glob(os.path.join(subfolder, "*.txt"))
     if len(txts) != 1:
-        raise FileNotFoundError(f"Expected exactly 1 .txt gene-list in {subfolder}, found {len(txts)}")
+        raise FileNotFoundError(
+            f"Expected exactly 1 .txt gene-list in {subfolder}, found {len(txts)}"
+        )
     with open(txts[0]) as f:
         ref_genes = [line.strip() for line in f if line.strip()]
 
@@ -138,9 +151,15 @@ def main():
         grid = GridSearchCV(
             SVC(class_weight="balanced", probability=False),
             param_grid={"C": C_VALUES},
-            scoring={"AUC": "roc_auc", "AUPRC": "average_precision", "PR@10": pr10_scorer},
-            refit="AUC", cv=inner_splits_mapped, n_jobs=N_JOBS,
-            return_train_score=False
+            scoring={
+                "AUC": "roc_auc",
+                "AUPRC": "average_precision",
+                "PR@10": pr10_scorer,
+            },
+            refit="AUC",
+            cv=inner_splits_mapped,
+            n_jobs=N_JOBS,
+            return_train_score=False,
         )
         grid.fit(X_train, y_train)
         inner_time = time.time() - t0_inner
@@ -159,18 +178,20 @@ def main():
         outer_pr10 = precision_at_k(y_outer, outer_scores, k=10)
         outer_time = time.time() - t0_outer
 
-        results.append({
-            "fold": fold,
-            "best_C": grid.best_params_["C"],
-            "inner_AUC": inner_auc,
-            "inner_AUPRC": inner_auprc,
-            "inner_PR@10": inner_pr10,
-            "inner_time": inner_time,
-            "outer_AUC": outer_auc,
-            "outer_AUPRC": outer_auprc,
-            "outer_PR@10": outer_pr10,
-            "outer_time": outer_time
-        })
+        results.append(
+            {
+                "fold": fold,
+                "best_C": grid.best_params_["C"],
+                "inner_AUC": inner_auc,
+                "inner_AUPRC": inner_auprc,
+                "inner_PR@10": inner_pr10,
+                "inner_time": inner_time,
+                "outer_AUC": outer_auc,
+                "outer_AUPRC": outer_auprc,
+                "outer_PR@10": outer_pr10,
+                "outer_time": outer_time,
+            }
+        )
 
     df = pd.DataFrame(results)
     df["orig_pos_pairs"] = orig_pos
@@ -188,7 +209,7 @@ def main():
         "outer_PR@10": df["outer_PR@10"].mean(),
         "outer_time": df["outer_time"].mean(),
         "orig_pos_pairs": df["orig_pos_pairs"].mean(),
-        "filtered_pos_pairs": df["filtered_pos_pairs"].mean()
+        "filtered_pos_pairs": df["filtered_pos_pairs"].mean(),
     }
     df = pd.concat([df, pd.DataFrame([summary])], ignore_index=True)
 

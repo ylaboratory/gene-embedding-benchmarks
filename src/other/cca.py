@@ -4,9 +4,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.cross_decomposition import CCA
 import matplotlib.patches as mpatches
-import pandas as pd 
-import glob 
-import os 
+import pandas as pd
+import glob
+import os
+
 
 def apply_pca_to_embeddings(embeddings_dict, n_components=10):
     pca_embeddings = {}
@@ -21,8 +22,9 @@ def compute_similarity(emb1, emb2):
     n_components = min(emb1.shape[1], emb2.shape[1])
     cca = CCA(n_components=n_components)
     cca.fit(emb1, emb2)
-    #X_c, Y_c = cca.transform(emb1, emb2)
+    # X_c, Y_c = cca.transform(emb1, emb2)
     return cca.score(emb1, emb2)
+
 
 # Process intersect folder for embeddings and gene lists
 def process_intersect(intersect_path):
@@ -62,8 +64,12 @@ INTERSECT_PATH = "data/embeddings/intersect/"
 gene_lists, embeddings = process_intersect(INTERSECT_PATH)
 embeddings_aligned = align_embeddings(gene_lists, embeddings)
 
-embeddings_aligned_np = {name: np.array(embedding) for name, embedding in embeddings_aligned.items()}
-embeddings_aligned_np_pca = apply_pca_to_embeddings(embeddings_aligned_np, n_components=10)
+embeddings_aligned_np = {
+    name: np.array(embedding) for name, embedding in embeddings_aligned.items()
+}
+embeddings_aligned_np_pca = apply_pca_to_embeddings(
+    embeddings_aligned_np, n_components=10
+)
 
 embedding_names = sorted(embeddings_aligned_np_pca.keys())
 n_embeddings = len(embedding_names)
@@ -72,7 +78,9 @@ similarity_matrix = np.zeros((n_embeddings, n_embeddings))
 for i, name_i in enumerate(embedding_names):
     print(name_i)
     for j, name_j in enumerate(embedding_names[i:], start=i):
-        sim = compute_similarity(embeddings_aligned_np_pca[name_i], embeddings_aligned_np_pca[name_j])
+        sim = compute_similarity(
+            embeddings_aligned_np_pca[name_i], embeddings_aligned_np_pca[name_j]
+        )
         similarity_matrix[i, j] = sim
         similarity_matrix[j, i] = sim
 
@@ -82,17 +90,17 @@ sim_df = pd.DataFrame(similarity_matrix, index=embedding_names, columns=embeddin
 g = sns.clustermap(
     sim_df,
     annot=False,
-    cmap='vlag',
+    cmap="vlag",
     fmt=".4f",
     square=True,
     linewidths=0,
     cbar_kws={"shrink": 0.5},
-    figsize=(20, 20)
+    figsize=(20, 20),
 )
 
-g.fig.suptitle('Canonical Correlation Analysis Scores', fontsize=16)
+g.fig.suptitle("Canonical Correlation Analysis Scores", fontsize=16)
 
-plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90, ha='right', fontsize=20)
+plt.setp(g.ax_heatmap.get_xticklabels(), rotation=90, ha="right", fontsize=20)
 plt.setp(g.ax_heatmap.get_yticklabels(), rotation=0, fontsize=20)
 
 

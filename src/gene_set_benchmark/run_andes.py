@@ -8,22 +8,26 @@ from pathlib import Path
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--embed-path",      default="data/embeddings/intersect", type=Path)
-parser.add_argument("--andes-script",    default="ANDES/src/andes.py",        type=Path)
-parser.add_argument("--geneset1",        default="data/gmt/KEGG_CPDB.gmt",    type=Path)
-parser.add_argument("--geneset2",        default="data/gmt/hsa_low_eval_BP_propagated.gmt", type=Path)
-parser.add_argument("--out-dir",         default="results/andes_out",         type=Path)
-parser.add_argument("--status-log",      default="andes_status.txt",          type=Path)
-parser.add_argument("--matched-pairs",   default="data/matched_pairs/matched_pair_kegg_go.txt", type=Path)
+parser.add_argument("--embed-path", default="data/embeddings/intersect", type=Path)
+parser.add_argument("--andes-script", default="ANDES/src/andes.py", type=Path)
+parser.add_argument("--geneset1", default="data/gmt/KEGG_CPDB.gmt", type=Path)
+parser.add_argument(
+    "--geneset2", default="data/gmt/hsa_low_eval_BP_propagated.gmt", type=Path
+)
+parser.add_argument("--out-dir", default="results/andes_out", type=Path)
+parser.add_argument("--status-log", default="andes_status.txt", type=Path)
+parser.add_argument(
+    "--matched-pairs", default="data/matched_pairs/matched_pair_kegg_go.txt", type=Path
+)
 
 args = parser.parse_args()
 
-embed_path         = args.embed_path
-andes_script       = args.andes_script
-geneset1           = args.geneset1
-geneset2           = args.geneset2
-andes_out_path     = args.out_dir
-status_log         = args.status_log
+embed_path = args.embed_path
+andes_script = args.andes_script
+geneset1 = args.geneset1
+geneset2 = args.geneset2
+andes_out_path = args.out_dir
+status_log = args.status_log
 matched_pairs_file = args.matched_pairs
 
 # embed_path = "data/embeddings/intersect"

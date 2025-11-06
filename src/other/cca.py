@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.cross_decomposition import CCA
 import matplotlib.patches as mpatches
+from sklearn.preprocessing import StandardScaler
 import pandas as pd
 import glob
 import os
@@ -12,6 +13,7 @@ import os
 def apply_pca_to_embeddings(embeddings_dict, n_components=10):
     pca_embeddings = {}
     for name, embedding in embeddings_dict.items():
+        embedding = StandardScaler().fit_transform(embedding)
         pca = PCA(n_components=n_components)
         embedding_reduced = pca.fit_transform(embedding)
         pca_embeddings[name] = embedding_reduced
@@ -76,8 +78,7 @@ n_embeddings = len(embedding_names)
 similarity_matrix = np.zeros((n_embeddings, n_embeddings))
 
 for i, name_i in enumerate(embedding_names):
-    print(name_i)
-    for j, name_j in enumerate(embedding_names[i:], start=i):
+    for j, name_j in enumerate(embedding_names):
         sim = compute_similarity(
             embeddings_aligned_np_pca[name_i], embeddings_aligned_np_pca[name_j]
         )

@@ -29,7 +29,6 @@ for selecting and successfully leveraging gene embeddings for downstream biologi
 This repo is organized into several sections, with the gene embeddings stored on [embedding zenodo](https://zenodo.org/records/16764517).
 If rerunning all code from the embedding stage, please download these files and put them under the `data` folder in a 
 new folder called `embeddings/intersect` for the common genes and `embeddings/all_genes` for the full embeddings.
-- `bin`: pkl files, which includes the fold and holdout splits that we used in our tests
 - `data`: contains datasets and metadata used for benchmarking
   - `gmt`: gene set files used for benchmarking 
   - `matched_pairs`: files used to map one annotation to another
@@ -42,10 +41,9 @@ new folder called `embeddings/intersect` for the common genes and `embeddings/al
   - `gene_level_benchmark`: code used for benchmarking disease gene prediction (OMIM) and gene function prediction (GO).
   - `gene_pair_benchmark`: code used for benchmarking genetic interaction (e.g., SL/NG) and transcription factor target (TF) prediction.
   - `gene_set_benchmark`: code used for benchmarking matching pathways (GO/KEGG) and disease/tissue (OMIM/Brenda).
-  - `preprocess_embedding`: code used for preprocessing embeddings
-  - `summary.py`: code used for summarizing the tested embeddings
   - `paper_figures.R`: code used for reproducing exact figures from the paper (uses the outputs in `results/tsvs`)
-
+  - `other`: code used for preprocessing embeddings and conducting the CCA and ANOVA analysis
+    - `preprocess_embedding`: code used for preprocessing embeddings
 
 ## Environment and Dependencies
 

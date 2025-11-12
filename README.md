@@ -10,19 +10,7 @@ companion resource to our forthcoming study which can be read at the citation be
 
 ## About
 
-Gene embeddings have emerged as transformative tools in computational biology, enabling the efficient
-translation of complex biological datasets into compact vector representations. This study presents a
-comprehensive benchmark by evaluating 38 classic and state-of-the-art gene embedding methods across a
-spectrum of functional prediction tasks. These embeddings, derived from data sources such as amino acid
-sequences, gene expression profiles, protein-protein interaction networks, and biomedical literature,
-are assessed for their performance in predicting individual gene attributes, paired gene interactions,
-and gene set relationships. Our analysis reveals that biomedical literature-based embeddings consistently
-excel in general predictive tasks, amino acid sequence embeddings outperform in functional and genetic
-interaction predictions, and gene expression embeddings are particularly well-suited for disease-related
-tasks. Importantly, we find that the type of training data has a greater influence on performance than
-the specific embedding construction method, with embedding dimensionality having only minimal impact.
-By elucidating the strengths and limitations of various gene embeddings, this work provides guidance
-for selecting and successfully leveraging gene embeddings for downstream biological prediction tasks.
+Accurate, data-driven representations of genes are critical for interpreting high-throughput biological data, yet no consensus exists on the most effective embedding strategy for common functional prediction tasks. Here, we present a systematic comparison of 38 gene embedding methods derived from amino acid sequences, gene expression profiles, protein-protein interaction networks, and biomedical literature. We benchmark each approach across three classes of tasks: predicting individual gene attributes, characterizing paired gene interactions, and assessing gene set relationships while trying to control for data leakage. Overall, we find that literature-based embeddings deliver superior performance across prediction tasks, sequence-based models excel in genetic interaction predictions, and expression-derived representations are well-suited for disease-related associations. Interestingly, network embeddings achieve similar performance to literature-based embeddings on most tasks despite using significantly smaller training sets. The type of training data has a greater influence on performance than the specific embedding construction method, with embedding dimensionality having only minimal impact. Our benchmarks clarify the strengths and limitations of current gene embeddings, providing practical guidance for selecting representations for downstream biological applications.
 
 ## Organization
 

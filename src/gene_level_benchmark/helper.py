@@ -810,7 +810,7 @@ def plot_slim_clustermap(
     g.ax_heatmap.set_ylabel("Embeddings", fontsize=14)
 
     plt.savefig(
-        f"results/plots/omim/{title}_clustermap.pdf", format="pdf", bbox_inches="tight"
+        f"results/plots/omim_{title}_clustermap.pdf", format="pdf", bbox_inches="tight"
     )
 
     df_melted = df.reset_index().melt(
@@ -839,7 +839,7 @@ def plot_slim_clustermap(
         plt.legend("", frameon=False)
 
     plt.savefig(
-        f"results/plots/omim/{title}_boxplot.pdf", format="pdf", bbox_inches="tight"
+        f"results/plots/omim_{title}_boxplot.pdf", format="pdf", bbox_inches="tight"
     )
 
     return g

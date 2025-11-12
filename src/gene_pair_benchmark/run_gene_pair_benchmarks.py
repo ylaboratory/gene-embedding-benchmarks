@@ -72,7 +72,7 @@ if __name__ == "__main__":
         final_train_pairs,
         final_train_labels,
     )
-    sl_fold_results_df.to_csv("results/gene_pair/sl_holdout_results.csv", index=False)
+    sl_fold_results_df.to_csv("results/sl_holdout_results.csv", index=False)
 
     # NG
     data = pd.read_csv(
@@ -136,7 +136,7 @@ if __name__ == "__main__":
         final_train_labels,
     )
     ng_holdout_results_df.to_csv(
-        "results/gene_pair/ng_holdout_results.csv", index=False
+        "results/ng_holdout_results.csv", index=False
     )
 
     # TF
@@ -198,7 +198,7 @@ if __name__ == "__main__":
         final_train_labels,
     )
     tf_holdout_results_df.to_csv(
-        "results/gene_pair/tf_holdout_results.csv", index=False
+        "results/tf_holdout_results.csv", index=False
     )
 
     # Compile data for plot

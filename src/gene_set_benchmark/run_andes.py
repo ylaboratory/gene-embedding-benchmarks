@@ -5,10 +5,10 @@ from datetime import datetime
 # change file name/path (that are commented out) based on disease-tissue vs kegg-go task
 
 embed_path = "data/embeddings/intersect"
-andes_script = "ANDES/src/andes.py"
+andes_script = "ANDES/src/andes.py" 
 geneset1 = "data/gmt/KEGG_CPDB.gmt"  # 'data/gmt/bto_specific.gmt'
 geneset2 = "data/gmt/hsa_low_eval_BP_propagated.gmt"  # 'data/gmt/omim_entrez.gmt'
-andes_out_path = "results/andes_out"
+andes_out_path = "results/"
 status_log = "andes_status.txt"
 matched_pairs_file = "data/matched_pairs/matched_pair_kegg_go.txt"  # data/matched_pairs/matched_list_bto_doid.txt
 

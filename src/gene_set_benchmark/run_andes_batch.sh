@@ -3,6 +3,8 @@
 # Input arguments
 EMBED_PATH="data/embeddings/intersect" # folder of folders with all embeddings to be tested
 ANDES_SCRIPT="ANDES/src/andes.py"
+# please install ANDES via the directions in the README
+# to run ANDES in distinct mode (no overlap), set distinct = True in ANDES/src/set_analysis_func.py in the andes() function.
 GENESET1="data/gmt/KEGG_CPDB.gmt"
 GENESET2="data/gmt/hsa_low_eval_BP_propagated.gmt"
 OUT_DIR="results/andes_out"

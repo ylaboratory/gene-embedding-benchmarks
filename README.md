@@ -55,5 +55,5 @@ conda env create -f env.yml
 conda activate gene_embed_benchmark 
 ```
 
-To run the gene set benchmarks, you will also need to install [ANDES](https://pubmed.ncbi.nlm.nih.gov/39231608/).
-Please refer to the [ANDES repository](https://github.com/ylaboratory/ANDES) for futher setup and usage instructions.
+To run the gene set benchmarks, you will also need to install [ANDES](https://pubmed.ncbi.nlm.nih.gov/39231608/). To run ANDES in distinct mode (no overlap), set distinct = True in ANDES/src/set_analysis_func.py in the andes() function.
+Please refer to the [ANDES repository](https://github.com/ylaboratory/ANDES) for futher setup and usage instructions. 

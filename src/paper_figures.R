@@ -437,15 +437,14 @@ ggplot(res, aes(x=algorithm, y=auroc, fill = operation)) + geom_boxplot() + them
 ggsave('results/plots/pair_algorithm_operation.pdf', width=5.5, height=4)
 
 # stats
-am = aov(auroc~type*operation*algorithm*input,data=res)
+am = aov(auroc~type*operation*algorithm,data=res)
 summary(am)
-TukeyHSD(am, which="type")
-TukeyHSD(am, which="operation")
-TukeyHSD(am, which="algorithm")
 
 library(emmeans)
-am = aov(auroc~type*operation*algorithm,data=res)
-emmeans(am, pairwise ~ operation | algorithm, adjust = "tukey")
+emmeans(am, pairwise ~ type, adjust="tukey")
+emmeans(am, pairwise ~ operation, adjust="tukey")
+emmeans(am, pairwise ~ algorithm, adjust="tukey")
+emmeans(am, pairwise ~ operation | algorithm, adjust="tukey")
 
 # -------------------
 # Figure 4

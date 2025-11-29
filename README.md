@@ -64,12 +64,7 @@ cd gene-embedding-benchmarks
 
 - Gene embeddings: Download processed embeddings from Zenodo and place under `data/embeddings/intersect/` and `data/embeddings/all_genes/`.
 
-- Genetic interactions: Synthetic lethal (SL), negative genetic (NG), and S. pombe datasets from [BioGRID](https://thebiogrid.org/) v4.4.240.
-
-- TF–target interactions: Download from [TFBSDB](https://tfbsdb.systemsbiology.net/).
-
-- GO and OMIM resources: Preprocessed ontology files, slim sets, and gene sets are already included in `data/gmt/`, `data/obo/`, `data/slim_sets/`, and `data/matched_pairs`.
-
+- Resources for creating data splits (optional): Genetic interaction datasets from [BioGRID](https://thebiogrid.org/) v4.4.240, TF–target interactions from [TFBSDB](https://tfbsdb.systemsbiology.net/), and GO/OMIM materials provided in `data/gmt/`, `data/obo/`, `data/slim_sets/`, and `data/matched_pairs/`.
 
 ### 1. (Optional) Rebuild embeddings
 

@@ -33,10 +33,13 @@ new folder called `embeddings/intersect` for the common genes and `embeddings/al
   - `other`: code used for preprocessing embeddings and conducting the CCA and ANOVA analysis
     - `preprocess_embedding`: code used for preprocessing embeddings
 
-## Environment and Dependencies
+## System requirements
 
-We recommend using conda for installing all necessary packages. Once conda is
-installed, get started by creating and activating the virtual environment.
+### Hardware requirements
+The software runs on most Unix-like operating systems. All analyses can be run on a standard workstation or HPC node. No specialized hardware (e.g., GPUs) is required.
+
+### Software dependencies
+All Python dependencies are specified in env.yml. We recommend using conda for installing all necessary packages. Once conda is installed, get started by creating and activating the virtual environment.
 
 ```bash
 conda env create -f env.yml
@@ -45,3 +48,47 @@ conda activate gene_embed_benchmark
 
 To run the gene set benchmarks, you will also need to install [ANDES](https://pubmed.ncbi.nlm.nih.gov/39231608/). To run ANDES in distinct mode (no overlap), set distinct = True in ANDES/src/set_analysis_func.py in the andes() function.
 Please refer to the [ANDES repository](https://github.com/ylaboratory/ANDES) for futher setup and usage instructions. 
+
+R version 4.5.1 was used with the following packages: ggplot2 (3.5.1), data.table (1.16.4), RColorBrewer (1.1-3), tidytext (0.4.3), ggnewscale (0.5.1), viridis (0.6.5), emmeans (2.0.0), patchwork (1.3.0). 
+
+## Execution Guide
+
+### Code retrieval
+Clone the repository (typically <10 seconds):
+
+```bash
+git clone https://github.com/ylaboratory/gene-embedding-benchmarks.git
+cd gene-embedding-benchmarks
+``` 
+### Data required 
+
+- Gene embeddings: Download processed embeddings from Zenodo and place under `data/embeddings/intersect/` and `data/embeddings/all_genes/`.
+
+- Resources for creating data splits (optional): Genetic interaction datasets from [BioGRID](https://thebiogrid.org/) v4.4.240, TF–target interactions from [TFBSDB](https://tfbsdb.systemsbiology.net/), and GO/OMIM materials provided in `data/gmt/`, `data/obo/`, `data/slim_sets/`, and `data/matched_pairs/`.
+
+### 1. (Optional) Rebuild embeddings
+
+If you prefer to reconstruct embeddings from scratch, download each embedding from its respective repository. Minor preprocessing may be required depending on format or identifier conventions.
+Run preprocessing in: `src/other/preprocess_embedding/preprocess.ipynb`
+
+### 2. Gene-level benchmarks
+Data splits used in the study for the gene-level tasks are provided under `data/data_splits/`. Optionally, to generate new splits, use the notebook: `src/gene_level_benchmark/create_gene_level_splits.ipynb`. The benchmark itself is implemented in: `src/gene_level_benchmark/gene_level_benchmarks.py`. A template script for running the benchmark is provided in: `src/gene_level_benchmark/run_gene_level.sh`. Further usage details can be found in the inline comments of the respective files. CSVs with performance metrics are outputed by these scripts.
+
+### 3. Paired-gene interaction benchmarks 
+
+Data splits used in the study for the paired-gene tasks are provided under `data/data_splits/`. Optionally, to  generate new splits, use the notebook: `src/gene_pair_benchmark/create_pair_splits.ipynb`. The benchmark itself is implemented in: `src/gene_pair_benchmark/gene_pair_benchmarks.py`. A template script for running the benchmark is provided in: `src/gene_pair_benchmark/run_gene_pair.sh`. Further usage details can be found in the inline comments of the respective files. CSVs with performance metrics are outputed by these scripts.
+
+### 4. Gene-set benchmarks 
+
+(Requires ANDES.)
+
+The benchmarking code is located in `src/gene_set_benchmark/`.  
+A template script for running these analyses is provided in:  
+`src/gene_set_benchmark/run_andes_batch.sh`. Further usage details can be found in the inline comments of the respective files.
+
+
+### 5. Additional analyses 
+
+Additional analysis scripts are located in `src/other/`, including `cca.py`, `anova.py`, and `jaccard.py`; manuscript figures can be generated using `src/paper_figures.R`.
+
+All benchmark outputs are written to `results/tsvs/`, and the scripts expect this directory structure to be present for successful execution (otherwise the output paths should be updated as noted in the comments of each file). We also provide the full set of results used in the manuscript within this repository.
